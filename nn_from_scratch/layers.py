@@ -28,7 +28,7 @@ class Dense(Layer):
         else:
             W = xavier_init(in_features, out_features)
         self.W = W
-        self.b = np.zeros(out_features) if bias else None
+        self.b = np.zeros(out_features, dtype=self.W.dtype) if bias else None
         self.x: Optional[np.ndarray] = None
         # gradients
         self.dW = np.zeros_like(self.W)
@@ -118,4 +118,3 @@ class Softmax(Layer):
             J = np.diagflat(y) - y @ y.T    # (C,C)
             grad_in[i] = J @ grad_out[i]
         return grad_in
-

@@ -4,27 +4,43 @@ from typing import Optional
 
 
 class RandomContext:
-    """Small helper to manage RNG state and dtype centrally.
+    """Manage RNG state and dtype.
 
-    This keeps things slightly more OO without overcomplicating utilities.
+    If no seed is provided, this context follows the global NumPy RNG
+    (np.random), so calling np.random.seed(...) will also affect inits.
+    If a seed is provided via constructor or set_seed, it uses its own
+    independent RNG.
     """
 
-    def __init__(self, seed: Optional[int] = None, dtype: np.dtype = np.float32):
+    def __init__(self, seed: Optional[int] = None, dtype: np.dtype = np.float64):
         self.dtype = dtype
-        self.rng = np.random.RandomState(seed) if seed is not None else np.random.RandomState()
+        self.use_global = seed is None
+        self.rng = None if self.use_global else np.random.RandomState(seed)
 
-    def set_seed(self, seed: int):
-        self.rng.seed(seed)
+    def set_seed(self, seed: Optional[int]):
+        if seed is None:
+            self.use_global = True
+            self.rng = None
+        else:
+            self.use_global = False
+            if self.rng is None:
+                self.rng = np.random.RandomState(seed)
+            else:
+                self.rng.seed(seed)
 
     def randn(self, *shape):
-        return self.rng.randn(*shape).astype(self.dtype, copy=False)
+        if self.use_global:
+            arr = np.random.randn(*shape)
+        else:
+            arr = self.rng.randn(*shape)
+        return arr.astype(self.dtype, copy=False)
 
 
 # Global default random context
 _GLOBAL_RC = RandomContext()
 
 
-def set_seed(seed: int):
+def set_seed(seed: Optional[int]):
     _GLOBAL_RC.set_seed(seed)
 
 
@@ -52,4 +68,3 @@ def xavier_init(fan_in: int, fan_out: int, rc: Optional[RandomContext] = None) -
     rc = rc or _GLOBAL_RC
     scale = math.sqrt(1.0 / fan_in)
     return rc.randn(fan_in, fan_out) * scale
-
